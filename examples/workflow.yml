@@ -20,7 +20,7 @@ jobs:
       # ... your steps to produce PREVIEW_HEAD_URL (this PR) and
       # PREVIEW_BASE_URL (the target branch) go here ...
 
-      - uses: your-org/a11y-ci/action@v0
+      - uses: InnerSpark/a11y-ci/action@v0.1.1
         with:
           base-url: ${{ env.PREVIEW_BASE_URL }}
           head-url: ${{ env.PREVIEW_HEAD_URL }}

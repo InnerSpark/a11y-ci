@@ -49,7 +49,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: your-org/a11y-ci/action@v0
+      - uses: InnerSpark/a11y-ci/action@v0.1.1
         with:
           base-url: ${{ env.PREVIEW_BASE_URL }}     # base-branch deploy
           head-url: ${{ env.PREVIEW_HEAD_URL }}     # this PR's deploy

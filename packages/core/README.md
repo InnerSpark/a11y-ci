@@ -10,6 +10,6 @@ const result = await audit('https://example.com/checkout');
 console.log(result.overallScore, result.issues.length);
 ```
 
-Part of [a11y-ci](https://github.com/a11yci/a11y-ci). Source-available under the
+Part of [a11y-ci](https://github.com/InnerSpark/a11y-ci). Source-available under the
 Elastic License 2.0 (see `LICENSE`): free to use and self-host, not to resell as a
 hosted service.

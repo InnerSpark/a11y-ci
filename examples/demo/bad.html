@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>a11y-ci demo: page with issues</title>
+</head>
+<body>
+  <main>
+    <h1>Newsletter signup</h1>
+    <!-- Low contrast: #bbbbbb on white is about 1.9:1, fails 1.4.3 -->
+    <p style="color:#bbbbbb; background:#ffffff">Join our newsletter for product updates.</p>
+    <!-- Missing alt text, fails 1.1.1 -->
+    <img src="logo.png" width="80" height="80">
+    <form>
+      <!-- No associated label (placeholder is not a label), fails 4.1.2 / 3.3.2 -->
+      <input id="email" name="email" type="email" placeholder="Email address">
+      <button type="submit">Subscribe</button>
+    </form>
+  </main>
+</body>
+</html>

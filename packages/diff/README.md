@@ -12,5 +12,5 @@ const d = diff(baseResult, headResult);
 const blockers = gatingRegressions(d, 'fail'); // new fails only
 ```
 
-Part of [a11y-ci](https://github.com/a11yci/a11y-ci). Source-available under the
+Part of [a11y-ci](https://github.com/InnerSpark/a11y-ci). Source-available under the
 Elastic License 2.0 (see `LICENSE`).

@@ -1,6 +1,6 @@
 # @a11yci/cli
 
-Command-line runner for [a11y-ci](https://github.com/a11yci/a11y-ci). Audit URLs
+Command-line runner for [a11y-ci](https://github.com/InnerSpark/a11y-ci). Audit URLs
 and diff base vs head into a ranked, regression-only PR comment.
 
 ```bash
