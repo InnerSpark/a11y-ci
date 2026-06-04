@@ -26,7 +26,8 @@ function line(e: DiffEntry): string {
   const where = i.element ? ` \`${i.element.slice(0, 80)}\`` : '';
   const ref = i.wcagRef ? ` _(${i.wcagRef}${i.wcagLevel ? ' ' + i.wcagLevel : ''})_` : '';
   const fix = i.fix ? `\n  - Fix: ${i.fix.slice(0, 200)}` : '';
-  return `- ${badge(i)} **${i.title}**${ref} — \`${e.url}\`${where}${fix}`;
+  const aiFix = i.aiFix ? `\n  - 💡 Suggested fix (AI, review before applying): ${i.aiFix.replace(/\n+/g, ' ').slice(0, 400)}` : '';
+  return `- ${badge(i)} **${i.title}**${ref} — \`${e.url}\`${where}${fix}${aiFix}`;
 }
 
 export function formatMarkdown(d: DiffResult): string {

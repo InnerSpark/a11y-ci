@@ -27,6 +27,14 @@ inputs:
     description: "Token used to post the PR comment."
     required: false
     default: ${{ github.token }}
+  suggest-fixes:
+    description: "Attach AI fix suggestions to new issues. Requires anthropic-api-key. Advisory only."
+    required: false
+    default: "false"
+  anthropic-api-key:
+    description: "Anthropic API key (from a secret) used only when suggest-fixes is true. Never logged."
+    required: false
+    default: ""
 
 runs:
   using: "composite"
@@ -43,6 +51,9 @@ runs:
 
     - name: Audit base and head, then diff
       shell: bash
+      env:
+        # Passed through only for the optional AI suggestions; never echoed.
+        ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
       run: |
         IFS=',' read -ra ROUTES <<< "${{ inputs.routes }}"
         BASE=(); HEAD=()
@@ -55,7 +66,9 @@ runs:
         a11y-ci audit "${HEAD[@]}" --out head.json
         echo "Auditing base: ${BASE[*]}"
         a11y-ci audit "${BASE[@]}" --out base.json
-        if a11y-ci diff --base base.json --head head.json --out comment.md --fail-on "${{ inputs.fail-on }}"; then
+        DIFF_FLAGS=(--base base.json --head head.json --out comment.md --fail-on "${{ inputs.fail-on }}")
+        if [ "${{ inputs.suggest-fixes }}" = "true" ]; then DIFF_FLAGS+=(--suggest-fixes); fi
+        if a11y-ci diff "${DIFF_FLAGS[@]}"; then
           echo "A11Y_FAILED=0" >> "$GITHUB_ENV"
         else
           echo "A11Y_FAILED=1" >> "$GITHUB_ENV"

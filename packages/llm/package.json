@@ -1,7 +1,7 @@
 {
-  "name": "@a11yci/diff",
+  "name": "@a11yci/llm",
   "version": "0.2.0",
-  "description": "Regression diff for accessibility audits: what issues did this change add, fix, or leave unchanged.",
+  "description": "Optional, bring-your-own-key Claude adapter for a11y-ci: AI fix suggestions and semantic review. Advisory only, never in the gate.",
   "license": "SEE LICENSE IN LICENSE",
   "type": "module",
   "main": "dist/index.js",

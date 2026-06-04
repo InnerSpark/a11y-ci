@@ -21,6 +21,7 @@ needs a human is labelled, not hand-waved.
 | --- | --- |
 | `@a11yci/core` | Renders a URL and produces a structured `AuditResult` (axe + custom checks). |
 | `@a11yci/diff` | Compares two `AuditResult`s into `{ added, fixed, unchanged }`. |
+| `@a11yci/llm` | Optional, BYO-key Claude adapter: AI fix suggestions + semantic review. Advisory. |
 | `@a11yci/cli` | `a11y-ci` — audit a URL, or diff base vs head into a ranked Markdown comment. |
 | `action/` | A GitHub Action that runs the CLI on a PR and posts the comment. |
 
@@ -58,6 +59,31 @@ jobs:
 ```
 
 It runs entirely inside your pipeline. Nothing is uploaded anywhere.
+
+## AI fix suggestions (optional, bring-your-own-key)
+
+Add Claude-generated fix suggestions to the new issues, and a semantic review of
+the things axe can't judge. Both are **advisory** and never change the pass/fail
+decision. Set `ANTHROPIC_API_KEY` and:
+
+```bash
+a11y-ci diff --base base.json --head head.json --suggest-fixes   # adds a fix to each new issue
+a11y-ci audit https://example.com --semantic                     # adds AI-found semantic issues
+```
+
+In the Action:
+
+```yaml
+- uses: InnerSpark/a11y-ci/action@v0.2.0
+  with:
+    base-url: ${{ env.PREVIEW_BASE_URL }}
+    head-url: ${{ env.PREVIEW_HEAD_URL }}
+    suggest-fixes: "true"
+    anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+The key is only read for these features, stays in your runner, and is never logged.
+With no key, everything falls back to the deterministic-only behavior.
 
 ## Design principles
 

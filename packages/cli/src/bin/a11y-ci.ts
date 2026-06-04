@@ -2,6 +2,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { audit, type AuditResult } from '@a11yci/core';
 import { diff, gatingRegressions } from '@a11yci/diff';
+import { createAnthropicAdapter } from '@a11yci/llm';
 import { formatMarkdown } from '../report.js';
 
 function parseFlags(argv: string[]): { _: string[]; flags: Record<string, string | boolean> } {
@@ -24,22 +25,32 @@ function parseFlags(argv: string[]): { _: string[]; flags: Record<string, string
 const USAGE = `a11y-ci — accessibility regression checks for CI
 
 Usage:
-  a11y-ci audit <url...> [--out file.json] [--chrome] [--timeout 120000]
+  a11y-ci audit <url...> [--out file.json] [--chrome] [--timeout 120000] [--semantic]
   a11y-ci diff --base base.json --head head.json [--format markdown|json]
-               [--out comment.md] [--fail-on none|new-warn|new-serious]
+               [--out comment.md] [--fail-on none|new-warn|new-serious] [--suggest-fixes]
 
 Notes:
   - "audit" renders each URL, runs the deterministic engine, and writes an AuditResult.
   - "diff" reports only the issues head adds over base (regression-only).
   - Exit code is non-zero only when --fail-on is set and matching regressions exist.
+  - --semantic and --suggest-fixes use Claude (set ANTHROPIC_API_KEY). Both are
+    advisory: they never change the deterministic pass/fail decision.
 `;
 
 async function cmdAudit(_: string[], flags: Record<string, string | boolean>): Promise<number> {
   const urls = _;
   if (urls.length === 0) { console.error('audit: provide at least one URL\n\n' + USAGE); return 2; }
+  // --semantic enables the optional AI review (the checks axe can't judge).
+  // Strictly advisory: findings come back at "manual" severity.
+  let llm;
+  if (flags.semantic) {
+    llm = createAnthropicAdapter() ?? undefined;
+    if (!llm) console.error('audit: --semantic needs ANTHROPIC_API_KEY; running deterministic-only.');
+  }
   const result = await audit(urls, {
     useChromeChannel: Boolean(flags.chrome),
     timeoutMs: flags.timeout ? Number(flags.timeout) : undefined,
+    llm,
   });
   const json = JSON.stringify(result, null, 2);
   if (typeof flags.out === 'string') { writeFileSync(flags.out, json); console.error(`Wrote ${flags.out}`); }
@@ -62,6 +73,22 @@ async function cmdDiff(_: string[], flags: Record<string, string | boolean>): Pr
     console.error('diff: --base and --head are required\n\n' + USAGE); return 2;
   }
   const d = diff(load(flags.base), load(flags.head));
+
+  // --suggest-fixes attaches an AI fix suggestion to each NEW issue. Advisory,
+  // bounded, and a no-op (with a note) when no ANTHROPIC_API_KEY is present.
+  if (flags['suggest-fixes']) {
+    const llm = createAnthropicAdapter();
+    if (!llm?.suggestFix) {
+      console.error('diff: --suggest-fixes needs ANTHROPIC_API_KEY; skipping fix suggestions.');
+    } else {
+      for (const entry of d.added.slice(0, 12)) {
+        try {
+          const fix = await llm.suggestFix(entry.issue);
+          if (fix) entry.issue.aiFix = fix;
+        } catch { /* advisory: never fail the run on a suggestion error */ }
+      }
+    }
+  }
 
   if (flags.format === 'json') {
     const json = JSON.stringify(d, null, 2);

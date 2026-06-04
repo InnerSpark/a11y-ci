@@ -14,11 +14,19 @@
   validate axe color-contrast against computed colors).
 - Diff-aware route selection from the PR diff so CI stays fast.
 
-## v1 — opt-in gate + optional AI layer
-- `--fail-on=new-serious|new-any` to block merges on regressions (opt-in).
-- Optional `LlmAdapter` (bring-your-own key): semantic review (alt-text quality,
-  label-in-name, reading-order intent) as advisory comments, plus suggested-change
-  auto-fixes. Never in the blocking path.
+## v0.2 — optional AI layer (shipped)
+- `@a11yci/llm`: a bring-your-own-key Claude adapter, kept strictly advisory.
+- `a11y-ci diff --suggest-fixes` attaches an AI fix suggestion to each new issue.
+- `a11y-ci audit --semantic` adds the checks axe can't judge (unhelpful alt text,
+  non-descriptive link text, label-in-name, sensory-only instructions) at "manual"
+  severity. Neither path can ever change the deterministic pass/fail decision.
+
+## Next — the authoring linter
+- A static, source-level check (and a Claude skill) that catches issues as code is
+  written, before it renders: the accessible-primitive nudges, JSX/template
+  patterns, etc. This is the "shift-left" layer that pairs with the CI checker.
+- `--fail-on` already gates on regressions; future work hardens the gate ergonomics
+  (diff-aware route selection, baseline caching).
 
 ## Relationship to a hosted product
 `@a11yci/core` + VPAT generation are designed to be the shared engine. A separate

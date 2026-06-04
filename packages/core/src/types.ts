@@ -23,6 +23,8 @@ export interface Issue {
   impact?: string;
   /** How many nodes matched this rule on the page. */
   instanceCount?: number;
+  /** Optional AI-suggested fix, attached by the @a11yci/llm adapter. Advisory. */
+  aiFix?: string;
 }
 
 export interface PageResult {
@@ -54,7 +56,7 @@ export interface AuditResult {
  * the engine. */
 export interface LlmAdapter {
   semanticReview?(input: { url: string; html: string }): Promise<Issue[]>;
-  suggestFix?(issue: Issue, context: { html: string }): Promise<string | null>;
+  suggestFix?(issue: Issue, context?: { html?: string }): Promise<string | null>;
 }
 
 export interface AuditOptions {
