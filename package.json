@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "description": "Source-available accessibility CI engine: catch the accessibility issues a pull request introduces, before they merge.",
-  "license": "Elastic-2.0",
+  "license": "SEE LICENSE IN LICENSE",
   "workspaces": [
     "packages/*"
   ],

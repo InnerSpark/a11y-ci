@@ -2,7 +2,7 @@
   "name": "@a11yci/diff",
   "version": "0.1.0",
   "description": "Regression diff for accessibility audits: what issues did this change add, fix, or leave unchanged.",
-  "license": "Elastic-2.0",
+  "license": "SEE LICENSE IN LICENSE",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -13,8 +13,12 @@
     }
   },
   "files": ["dist", "README.md"],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
-    "build": "tsc -b"
+    "build": "tsc -b",
+    "prepublishOnly": "tsc -b"
   },
   "dependencies": {
     "@a11yci/core": "0.1.0"

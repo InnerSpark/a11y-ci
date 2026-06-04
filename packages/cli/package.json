@@ -2,14 +2,18 @@
   "name": "@a11yci/cli",
   "version": "0.1.0",
   "description": "Command-line runner for a11y-ci: audit URLs and diff base vs head into a PR comment.",
-  "license": "Elastic-2.0",
+  "license": "SEE LICENSE IN LICENSE",
   "type": "module",
   "bin": {
     "a11y-ci": "dist/bin/a11y-ci.js"
   },
   "files": ["dist", "README.md"],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
-    "build": "tsc -b"
+    "build": "tsc -b",
+    "prepublishOnly": "tsc -b"
   },
   "dependencies": {
     "@a11yci/core": "0.1.0",
