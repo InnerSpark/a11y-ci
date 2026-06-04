@@ -109,3 +109,4 @@ summary, not a substitute for the license:
 This is intentional: the tool is free for everyone to use, but not for anyone to
 resell as a service.
 
+
