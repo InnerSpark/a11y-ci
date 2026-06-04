@@ -1,0 +1,28 @@
+# Example consumer workflow. Drop this in .github/workflows/a11y.yml in your repo.
+#
+# Assumes you already deploy a preview for the PR and know the base-branch URL
+# (Vercel/Netlify previews, a staging env, etc.). a11y-ci checks the same routes
+# on both and comments only on what the PR newly breaks.
+name: a11y-ci
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write   # needed to post the comment
+
+jobs:
+  a11y:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # ... your steps to produce PREVIEW_HEAD_URL (this PR) and
+      # PREVIEW_BASE_URL (the target branch) go here ...
+
+      - uses: your-org/a11y-ci/action@v0
+        with:
+          base-url: ${{ env.PREVIEW_BASE_URL }}
+          head-url: ${{ env.PREVIEW_HEAD_URL }}
+          routes: "/,/checkout,/account"
+          fail-on: none        # start advisory; switch to 'new-serious' once trusted

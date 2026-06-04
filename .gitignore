@@ -1,0 +1,12 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.DS_Store
+*.log
+.env
+.env.*
+coverage/
+# audit artifacts produced by the CLI
+a11y-base.json
+a11y-head.json
+a11y-comment.md

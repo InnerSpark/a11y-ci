@@ -1,0 +1,22 @@
+{
+  "name": "a11y-ci-monorepo",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Source-available accessibility CI engine: catch the accessibility issues a pull request introduces, before they merge.",
+  "license": "Elastic-2.0",
+  "workspaces": [
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsc --build",
+    "clean": "tsc --build --clean",
+    "typecheck": "tsc --build --dry"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.4.0"
+  }
+}

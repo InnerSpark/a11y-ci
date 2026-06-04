@@ -1,0 +1,23 @@
+{
+  "name": "@a11yci/core",
+  "version": "0.1.0",
+  "description": "Deterministic accessibility audit engine: render a URL and return a structured AuditResult.",
+  "license": "Elastic-2.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "README.md"],
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "axe-core": "^4.10.0",
+    "playwright": "^1.45.0"
+  }
+}

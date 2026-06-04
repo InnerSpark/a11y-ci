@@ -1,0 +1,88 @@
+name: "a11y-ci"
+description: "Comment the accessibility issues a pull request introduces (regression-only). Advisory by default."
+branding:
+  icon: "eye"
+  color: "blue"
+
+inputs:
+  base-url:
+    description: "Base-branch deployment URL (the comparison point)."
+    required: true
+  head-url:
+    description: "This PR's deployment/preview URL."
+    required: true
+  routes:
+    description: "Comma-separated paths to check against both URLs, e.g. '/,/checkout,/account'."
+    required: false
+    default: "/"
+  fail-on:
+    description: "When to fail the job: 'none' (advisory), 'new-warn', or 'new-serious'."
+    required: false
+    default: "none"
+  cli-version:
+    description: "Version of @a11yci/cli to use."
+    required: false
+    default: "latest"
+  github-token:
+    description: "Token used to post the PR comment."
+    required: false
+    default: ${{ github.token }}
+
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: "20"
+
+    - name: Install a11y-ci + browser
+      shell: bash
+      run: |
+        npm install -g "@a11yci/cli@${{ inputs.cli-version }}"
+        npx --yes playwright install --with-deps chromium
+
+    - name: Audit base and head, then diff
+      shell: bash
+      run: |
+        IFS=',' read -ra ROUTES <<< "${{ inputs.routes }}"
+        BASE=(); HEAD=()
+        for r in "${ROUTES[@]}"; do
+          r="$(echo "$r" | xargs)"   # trim
+          BASE+=("${{ inputs.base-url }}${r}")
+          HEAD+=("${{ inputs.head-url }}${r}")
+        done
+        echo "Auditing head: ${HEAD[*]}"
+        a11y-ci audit "${HEAD[@]}" --out head.json
+        echo "Auditing base: ${BASE[*]}"
+        a11y-ci audit "${BASE[@]}" --out base.json
+        if a11y-ci diff --base base.json --head head.json --out comment.md --fail-on "${{ inputs.fail-on }}"; then
+          echo "A11Y_FAILED=0" >> "$GITHUB_ENV"
+        else
+          echo "A11Y_FAILED=1" >> "$GITHUB_ENV"
+        fi
+
+    - name: Upsert PR comment
+      if: ${{ github.event_name == 'pull_request' }}
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ inputs.github-token }}
+        script: |
+          const fs = require('fs');
+          const body = fs.readFileSync('comment.md', 'utf8') + '\n<!-- a11y-ci -->';
+          const { owner, repo } = context.repo;
+          const issue_number = context.payload.pull_request.number;
+          const { data: comments } = await github.rest.issues.listComments({ owner, repo, issue_number });
+          const existing = comments.find(c => c.body && c.body.includes('<!-- a11y-ci -->'));
+          if (existing) {
+            await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+          } else {
+            await github.rest.issues.createComment({ owner, repo, issue_number, body });
+          }
+
+    - name: Enforce gate
+      shell: bash
+      run: |
+        if [ "${A11Y_FAILED}" = "1" ]; then
+          echo "a11y-ci: new accessibility regressions at or above the '${{ inputs.fail-on }}' threshold."
+          exit 1
+        fi
