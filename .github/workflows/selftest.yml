@@ -36,10 +36,20 @@ jobs:
           for i in $(seq 1 20); do curl -sf http://localhost:8080/good.html >/dev/null && break || sleep 0.5; done
 
       - name: Audit good (base) and bad (head), then diff
+        env:
+          # Present only if the repo has the secret; same-repo PRs receive it.
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           a11y-ci audit http://localhost:8080/good.html --out base.json
           a11y-ci audit http://localhost:8080/bad.html  --out head.json
-          a11y-ci diff --base base.json --head head.json --out comment.md || true
+          FLAGS=(--base base.json --head head.json --out comment.md)
+          if [ -n "$ANTHROPIC_API_KEY" ]; then
+            FLAGS+=(--suggest-fixes)
+            echo "ANTHROPIC_API_KEY present: AI fix suggestions ON"
+          else
+            echo "No ANTHROPIC_API_KEY: deterministic only"
+          fi
+          a11y-ci diff "${FLAGS[@]}" || true
           echo "----- comment.md -----"
           cat comment.md
 
