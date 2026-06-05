@@ -5,6 +5,17 @@ export type Severity = 'fail' | 'warn' | 'manual' | 'info' | 'pass';
 
 export type WcagLevel = 'A' | 'AA' | 'AAA';
 
+/** One offending node within an issue. The `fingerprint` is what the diff uses
+ * for identity: a stable, content-derived signature (tag, role, accessible name,
+ * and rule-specific data such as a contrast color pair) that deliberately does
+ * NOT include the volatile css-class selector. Two genuinely different elements
+ * (a link vs a button) get different fingerprints, so a same-count swap is
+ * visible to the diff. `target` is the raw axe selector, kept only for display. */
+export interface IssueNode {
+  fingerprint: string;
+  target?: string;
+}
+
 export interface Issue {
   /** Stable identifier for the rule, e.g. "axe-color-contrast". Used by the diff
    * to decide whether two issues are "the same" across base and head. */
@@ -23,6 +34,10 @@ export interface Issue {
   impact?: string;
   /** How many nodes matched this rule on the page. */
   instanceCount?: number;
+  /** Content fingerprints for every offending node, used by the diff for
+   * instance-level identity. When present the diff compares these multisets;
+   * when absent it falls back to the normalized selector + instanceCount. */
+  nodes?: IssueNode[];
   /** Optional AI-suggested fix, attached by the @a11yci/llm adapter. Advisory. */
   aiFix?: string;
 }

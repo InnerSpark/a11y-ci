@@ -38,9 +38,46 @@ function normalizeSelector(sel: string | undefined): string {
     .trim();
 }
 
-/** Identity of an issue for diffing: same rule, same place, same criterion. */
-function keyOf(issue: Issue): string {
-  return [issue.id, issue.wcagRef ?? '', normalizeSelector(issue.element)].join('|');
+/** Rule-and-criterion identity for a page (NOT the element). Instances within a
+ * rule are then told apart by their node fingerprints, below. */
+function ruleKey(issue: Issue): string {
+  return [issue.id, issue.wcagRef ?? ''].join('|');
+}
+
+/**
+ * The per-node identity multiset for an issue.
+ *
+ * Prefer the engine's content fingerprints (`issue.nodes`), which ignore the
+ * css-class selector entirely, so a removed link and an added button are
+ * distinct even when their selectors both normalize to `#main .css-*`. That is
+ * what makes a same-count swap visible (issue #5). When fingerprints are absent
+ * (older JSON, or a non-axe source), fall back to the normalized selector
+ * repeated `instanceCount` times, which preserves the previous count-aware
+ * behavior and still absorbs framework-hash churn.
+ */
+function fingerprintsOf(issue: Issue): string[] {
+  if (issue.nodes && issue.nodes.length > 0) return issue.nodes.map((n) => n.fingerprint);
+  const fp = normalizeSelector(issue.element);
+  return Array.from({ length: issue.instanceCount ?? 1 }, () => fp);
+}
+
+interface RuleGroup {
+  issue: Issue; // a representative, for the report
+  counts: Map<string, number>; // fingerprint -> how many nodes carry it
+}
+
+function groupByRule(issues: Issue[]): Map<string, RuleGroup> {
+  const groups = new Map<string, RuleGroup>();
+  for (const issue of issues) {
+    const key = ruleKey(issue);
+    let g = groups.get(key);
+    if (!g) {
+      g = { issue, counts: new Map() };
+      groups.set(key, g);
+    }
+    for (const fp of fingerprintsOf(issue)) g.counts.set(fp, (g.counts.get(fp) ?? 0) + 1);
+  }
+  return groups;
 }
 
 function pagesByUrl(result: AuditResult): Map<string, Issue[]> {
@@ -52,25 +89,11 @@ function pagesByUrl(result: AuditResult): Map<string, Issue[]> {
   return m;
 }
 
-/**
- * Aggregate a page's issues by signature, summing instance counts.
- *
- * axe reports one issue per rule per page (with `instanceCount` = number of
- * offending nodes and `element` = the FIRST node), so set-membership alone is
- * blind to a PR that adds MORE instances of a rule already firing on the page:
- * same signature, same first node, higher count. Carrying the count lets the
- * diff catch that regression. See keyOf for what counts as the same signature.
- */
-function countsByKey(issues: Issue[]): Map<string, { count: number; issue: Issue }> {
-  const m = new Map<string, { count: number; issue: Issue }>();
-  for (const issue of issues) {
-    const k = keyOf(issue);
-    const inc = issue.instanceCount ?? 1;
-    const prev = m.get(k);
-    if (prev) prev.count += inc;
-    else m.set(k, { count: inc, issue });
-  }
-  return m;
+/** Multiset difference: total instances in `a` that `b` does not account for. */
+function excessInstances(a: Map<string, number>, b: Map<string, number>): number {
+  let n = 0;
+  for (const [fp, count] of a) n += Math.max(0, count - (b.get(fp) ?? 0));
+  return n;
 }
 
 /**
@@ -78,6 +101,11 @@ function countsByKey(issues: Issue[]): Map<string, { count: number; issue: Issue
  * Pages are matched by URL. A head page with no base counterpart is treated as
  * new, so all its issues count as added. A base page missing from head (route
  * removed) is ignored.
+ *
+ * Identity is per node, by content fingerprint, so the diff catches not just new
+ * rules and higher counts but also same-count swaps (a removed offending node
+ * replaced by a different one). It still absorbs framework-hash churn, since the
+ * fingerprint does not include the volatile css class. See issue #5.
  */
 export function diff(base: AuditResult, head: AuditResult): DiffResult {
   const basePages = pagesByUrl(base);
@@ -85,19 +113,20 @@ export function diff(base: AuditResult, head: AuditResult): DiffResult {
 
   for (const headPage of head.pages) {
     if (headPage.error) continue;
-    const baseIssues = basePages.get(headPage.url);
-    const baseMap = countsByKey(baseIssues ?? []);
-    const headMap = countsByKey(headPage.issues);
+    const baseGroups = groupByRule(basePages.get(headPage.url) ?? []);
+    const headGroups = groupByRule(headPage.issues);
 
-    for (const [k, h] of headMap) {
-      const b = baseMap.get(k);
+    for (const [key, h] of headGroups) {
+      const b = baseGroups.get(key);
       if (!b) {
-        // A signature base never had: wholly new.
+        // A rule base never had on this page: wholly new.
         result.added.push({ url: headPage.url, issue: h.issue, change: 'new' });
-      } else if (h.count > b.count) {
-        // Same bug, but the PR adds instances of it. Gate the delta only, so the
-        // report says "+N new", not the whole pre-existing pile.
-        const addedInstances = h.count - b.count;
+        continue;
+      }
+      // Fingerprints present in head beyond what base had = newly introduced
+      // instances (covers both "more of the same" and a swap to a new element).
+      const addedInstances = excessInstances(h.counts, b.counts);
+      if (addedInstances > 0) {
         result.added.push({
           url: headPage.url,
           issue: { ...h.issue, instanceCount: addedInstances },
@@ -105,13 +134,12 @@ export function diff(base: AuditResult, head: AuditResult): DiffResult {
           addedInstances,
         });
       } else {
-        // Present in both at the same or lower count: not a regression. (A lower
-        // count is a partial fix; we don't gate improvements.)
+        // Same instances, or fewer (a partial fix; improvements are not gated).
         result.unchanged.push({ url: headPage.url, issue: h.issue });
       }
     }
-    for (const [k, b] of baseMap) {
-      if (!headMap.has(k)) result.fixed.push({ url: headPage.url, issue: b.issue });
+    for (const [key, b] of baseGroups) {
+      if (!headGroups.has(key)) result.fixed.push({ url: headPage.url, issue: b.issue });
     }
   }
 

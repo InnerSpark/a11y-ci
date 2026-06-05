@@ -1,6 +1,6 @@
 {
   "name": "@a11yci/cli",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Command-line runner for a11y-ci: audit URLs and diff base vs head into a PR comment.",
   "license": "SEE LICENSE IN LICENSE",
   "type": "module",
@@ -16,9 +16,9 @@
     "prepublishOnly": "tsc -b"
   },
   "dependencies": {
-    "@a11yci/core": "0.3.0",
-    "@a11yci/diff": "0.3.0",
-    "@a11yci/llm": "0.3.0",
-    "@a11yci/lint": "0.3.0"
+    "@a11yci/core": "0.4.0",
+    "@a11yci/diff": "0.4.0",
+    "@a11yci/llm": "0.4.0",
+    "@a11yci/lint": "0.4.0"
   }
 }

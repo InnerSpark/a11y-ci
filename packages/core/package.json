@@ -1,6 +1,6 @@
 {
   "name": "@a11yci/core",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Deterministic accessibility audit engine: render a URL and return a structured AuditResult.",
   "license": "SEE LICENSE IN LICENSE",
   "type": "module",

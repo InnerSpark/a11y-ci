@@ -1,6 +1,6 @@
 {
   "name": "@a11yci/diff",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Regression diff for accessibility audits: what issues did this change add, fix, or leave unchanged.",
   "license": "SEE LICENSE IN LICENSE",
   "type": "module",
@@ -21,6 +21,6 @@
     "prepublishOnly": "tsc -b"
   },
   "dependencies": {
-    "@a11yci/core": "0.3.0"
+    "@a11yci/core": "0.4.0"
   }
 }

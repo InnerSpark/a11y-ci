@@ -35,6 +35,15 @@
   rule rather than guess. Contrast and computed-role checks stay with the rendered
   engine, which the linter never tries to replicate.
 
+## v0.4 — content-fingerprint diff (shipped)
+- The regression diff identifies each offending node by a stable content
+  fingerprint (tag, role, accessible name, and rule-specific data such as a
+  contrast color pair) instead of the volatile css-class selector, and compares
+  the multisets per rule. This catches a same-count element swap (a removed
+  offending node replaced by a different one), which selector-based identity
+  missed, while still absorbing framework-hash churn. Reported by westont (#5).
+- Residual limit: identical-fingerprint controls are still indistinguishable.
+
 ## Next
 - A Claude skill that applies these same rules at authoring time inside the editor,
   so the fix is suggested as the code is written (the linter is the engine it

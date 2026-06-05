@@ -11,9 +11,10 @@ It is built to be **honest**: it reports what it actually measured, ranks findin
 by real user impact, and never asserts a "pass" it did not verify. Anything that
 needs a human is labelled, not hand-waved.
 
-> Status: **v0.3** — deterministic rendered engine, regression diff, an advisory
-> PR comment, an optional (opt-in) AI layer, and a static authoring linter for
-> source. Blocking is opt-in via `--fail-on`. See `docs/ROADMAP.md`.
+> Status: **v0.4** — deterministic rendered engine, a content-fingerprint
+> regression diff, an advisory PR comment, an optional (opt-in) AI layer, and a
+> static authoring linter for source. Blocking is opt-in via `--fail-on`. See
+> `docs/ROADMAP.md`.
 
 ## Two layers, one principle
 

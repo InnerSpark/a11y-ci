@@ -1,6 +1,6 @@
 import type { Page } from 'playwright';
 import { createRequire } from 'node:module';
-import type { Issue, Severity } from './types.js';
+import type { Issue, IssueNode, Severity } from './types.js';
 
 const require = createRequire(import.meta.url);
 // axe-core ships its browser source as a string we can inject into the page.
@@ -12,6 +12,51 @@ function impactToSeverity(impact: string | null | undefined): Severity {
     : impact === 'moderate'
       ? 'warn'
       : 'info';
+}
+
+// --- node fingerprinting -------------------------------------------------
+// Identity for the diff is derived from stable, meaningful content, never from
+// the css-class selector. axe's selector generator latches onto the random
+// Emotion/MUI `css-XXXX` class (it looks unique on the page) and shortens the
+// selector around it, dropping the tag and context; the diff then wildcards the
+// hash, leaving almost nothing to tell a link from a button. Fingerprinting by
+// tag + role + accessible name + rule-specific data (e.g. the contrast color
+// pair) is what lets the diff see a same-count element swap. See issue #5.
+
+function attrOf(html: string, name: string): string {
+  const m = html.match(new RegExp(`${name}\\s*=\\s*"([^"]*)"`, 'i'));
+  return m?.[1] ?? '';
+}
+function tagOf(html: string): string {
+  return html.match(/^<\s*([a-zA-Z][a-zA-Z0-9-]*)/)?.[1]?.toLowerCase() ?? '';
+}
+function textOf(html: string): string {
+  return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function fingerprintNode(ruleId: string, node: any): string {
+  const html: string = typeof node?.html === 'string' ? node.html : '';
+  const tag = tagOf(html);
+  const role = attrOf(html, 'role');
+  const type = attrOf(html, 'type');
+  // Accessible-ish name: prefer an explicit label, fall back to visible text.
+  const name = (attrOf(html, 'aria-label') || attrOf(html, 'alt') || attrOf(html, 'title') || textOf(html)).slice(0, 48);
+  let extra = '';
+  if (ruleId.startsWith('color-contrast')) {
+    const checks: any[] = [...(node?.any ?? []), ...(node?.all ?? []), ...(node?.none ?? [])];
+    const data = checks.map((c) => c?.data).find((d) => d && (d.fgColor || d.bgColor)) ?? {};
+    extra = [data.fgColor, data.bgColor, data.contrastRatio].filter(Boolean).join(':');
+  }
+  const fp = [tag, role, type, name, extra].filter(Boolean).join('~');
+  // Last-resort fallback so a fingerprint is never empty.
+  return fp || (Array.isArray(node?.target) ? node.target.join(' ') : '');
+}
+
+function nodesOf(ruleId: string, rawNodes: any[]): IssueNode[] {
+  return (rawNodes ?? []).map((n) => ({
+    fingerprint: fingerprintNode(ruleId, n),
+    target: Array.isArray(n?.target) ? n.target.join(', ').slice(0, 160) : undefined,
+  }));
 }
 
 function extractWcag(tags: string[]): { ref?: string; level?: 'A' | 'AA' | 'AAA' } {
@@ -61,6 +106,7 @@ export async function runAxe(page: Page): Promise<Issue[]> {
       element: node?.target?.join(', ')?.slice(0, 160),
       impact: v.impact,
       instanceCount: v.nodes?.length ?? 1,
+      nodes: nodesOf(v.id, v.nodes),
     });
   }
 
@@ -77,6 +123,7 @@ export async function runAxe(page: Page): Promise<Issue[]> {
       element: inc.nodes?.[0]?.target?.join(', ')?.slice(0, 160),
       impact: 'needs-review',
       instanceCount: inc.nodes?.length ?? 1,
+      nodes: nodesOf(inc.id, inc.nodes),
     });
   }
 
