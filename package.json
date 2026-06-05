@@ -13,10 +13,12 @@
   "scripts": {
     "build": "tsc --build",
     "clean": "tsc --build --clean",
-    "typecheck": "tsc --build --dry"
+    "typecheck": "tsc --build --dry",
+    "prepare": "husky"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
+    "husky": "^9.1.7",
     "typescript": "^5.4.0"
   }
 }

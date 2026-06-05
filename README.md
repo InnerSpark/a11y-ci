@@ -11,18 +11,33 @@ It is built to be **honest**: it reports what it actually measured, ranks findin
 by real user impact, and never asserts a "pass" it did not verify. Anything that
 needs a human is labelled, not hand-waved.
 
-> Status: **v0** — deterministic engine, regression diff, and an advisory PR
-> comment. No AI calls and no blocking gate yet (both are planned and designed to
-> be opt-in). See `docs/ROADMAP.md`.
+> Status: **v0.3** — deterministic rendered engine, regression diff, an advisory
+> PR comment, an optional (opt-in) AI layer, and a static authoring linter for
+> source. Blocking is opt-in via `--fail-on`. See `docs/ROADMAP.md`.
+
+## Two layers, one principle
+
+a11y-ci checks accessibility at two points, and is honest at both:
+
+1. **Authoring time** — `@a11yci/lint` reads your JSX/TSX and HTML **source** and
+   flags anti-patterns before anything renders (the clickable `<div>`, the `<img>`
+   with no alt, a positive `tabindex`). Fast, runs in the editor or pre-commit.
+2. **Rendered CI** — `@a11yci/core` renders the app and runs axe-core plus extra
+   WCAG 2.2 checks, then diffs against your base branch so only **new** issues are
+   reported. This is where contrast and computed-role checks live.
+
+The linter never guesses at what needs the live DOM, and the engine never claims a
+pass it didn't measure.
 
 ## Packages
 
 | Package | What it does |
 | --- | --- |
+| `@a11yci/lint` | Static authoring linter: flags a11y anti-patterns in JSX/TSX + HTML source, no render. |
 | `@a11yci/core` | Renders a URL and produces a structured `AuditResult` (axe + custom checks). |
 | `@a11yci/diff` | Compares two `AuditResult`s into `{ added, fixed, unchanged }`. |
 | `@a11yci/llm` | Optional, BYO-key Claude adapter: AI fix suggestions + semantic review. Advisory. |
-| `@a11yci/cli` | `a11y-ci` — audit a URL, or diff base vs head into a ranked Markdown comment. |
+| `@a11yci/cli` | `a11y-ci` — lint source, audit a URL, or diff base vs head into a ranked comment. |
 | `action/` | A GitHub Action that runs the CLI on a PR and posts the comment. |
 
 ## Quick start (local)
@@ -31,6 +46,9 @@ needs a human is labelled, not hand-waved.
 npm install
 npm run build
 
+# Lint source for accessibility anti-patterns (no render)
+npx a11y-ci lint src
+
 # Audit one URL to a JSON result
 npx a11y-ci audit https://staging.example.com/checkout --out head.json
 
@@ -38,6 +56,63 @@ npx a11y-ci audit https://staging.example.com/checkout --out head.json
 npx a11y-ci audit https://main.example.com/checkout --out base.json
 npx a11y-ci diff --base base.json --head head.json --format markdown
 ```
+
+## Authoring linter (`a11y-ci lint`)
+
+Static analysis of JSX/TSX and HTML source — it never renders the page, so it's
+fast enough for the editor or a pre-commit hook. It uses real parsers (parse5 for
+HTML, the TypeScript compiler for JSX/TSX), never regex, which is what keeps the
+false-positive rate low.
+
+```bash
+npx a11y-ci lint src                # walk a directory
+npx a11y-ci lint src --format json  # machine-readable
+npx a11y-ci lint src --fail-on warn # exit non-zero on warn-or-worse (advisory by default)
+```
+
+| Rule | Severity | WCAG | Catches |
+| --- | --- | --- | --- |
+| `img-alt` | error | 1.1.1 | `<img>` with no `alt` (and not marked decorative) |
+| `interactive-name` | error | 4.1.2 | `<button>` / `<a href>` with no text or accessible name |
+| `clickable-noninteractive` | warn | 2.1.1 | `<div>`/`<span>` with `onClick` but no role, tabindex, or key handler |
+| `input-label` | warn | 1.3.1 | form control with no `id`, no `aria-label`, and not wrapped in a `<label>` |
+| `positive-tabindex` | warn | 2.4.3 | `tabindex` greater than 0 |
+| `vague-link-text` | warn | 2.4.4 | link text like "click here" / "read more" |
+| `html-lang` | error | 3.1.1 | `<html>` with no `lang` |
+| `no-autofocus` | info | 3.2.1 | `autofocus` (moves focus on load) |
+| `obsolete-element` | error | 2.2.2 | `<marquee>` / `<blink>` |
+
+It's deliberately conservative: a dynamic attribute (`alt={x}`, `id={...}`) or an
+ambiguous child suppresses the related rule rather than guess. Contrast and
+computed-role checks are left to the rendered engine, which the linter never tries
+to replicate. See `examples/demo/Signup.tsx` for a fixture showing each rule (and
+the matching "good" cases it stays silent on).
+
+### Pre-commit hook
+
+This repo ships a husky pre-commit hook (`.husky/pre-commit`) that runs the linter
+on staged `.jsx`/`.tsx`/`.html` files and blocks the commit on errors. It's the
+local twin of the CI check: deterministic, ~0.6s, no network, no API key. The
+thing that can stop a commit is always the deterministic linter, never the AI
+layer, for the same reason the CI gate never depends on a model.
+
+It activates automatically after `npm install` (via the `prepare` script). To add
+the same gate to your own project:
+
+```bash
+npm install --save-dev husky
+npx husky init
+```
+
+```sh
+# .husky/pre-commit
+staged=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(jsx|tsx|html?)$')
+[ -z "$staged" ] && exit 0
+npx a11y-ci lint $staged --fail-on error   # tighten to --fail-on warn once trusted
+```
+
+Errors block (missing alt, empty controls); warnings pass until you're ready to
+tighten the gate.
 
 ## In CI (advisory)
 
@@ -50,7 +125,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: InnerSpark/a11y-ci/action@v0.1.1
+      - uses: InnerSpark/a11y-ci/action@v0.3.0
         with:
           base-url: ${{ env.PREVIEW_BASE_URL }}     # base-branch deploy
           head-url: ${{ env.PREVIEW_HEAD_URL }}     # this PR's deploy
@@ -74,7 +149,7 @@ a11y-ci audit https://example.com --semantic                     # adds AI-found
 In the Action:
 
 ```yaml
-- uses: InnerSpark/a11y-ci/action@v0.2.0
+- uses: InnerSpark/a11y-ci/action@v0.3.0
   with:
     base-url: ${{ env.PREVIEW_BASE_URL }}
     head-url: ${{ env.PREVIEW_HEAD_URL }}

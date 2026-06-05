@@ -4,6 +4,7 @@
     { "path": "packages/core" },
     { "path": "packages/diff" },
     { "path": "packages/llm" },
+    { "path": "packages/lint" },
     { "path": "packages/cli" }
   ]
 }

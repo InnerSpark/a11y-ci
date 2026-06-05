@@ -1,0 +1,23 @@
+# a11y-ci pre-commit: catch accessibility regressions in staged source before
+# they land. Deterministic, fast (~0.6s), no network, no API key. This is the
+# local twin of the rendered CI check: the thing that can BLOCK a commit is
+# always the deterministic linter, never the AI layer.
+
+# Only the staged UI source files, added/copied/modified (not deletes). The
+# `|| true` matters: husky runs hooks with `set -e`, and grep exits non-zero
+# when nothing matches, which would otherwise abort the commit on every change
+# that touches no UI files.
+staged=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(jsx|tsx|html?)$' | grep -v '^examples/' || true)
+[ -z "$staged" ] && exit 0
+
+# The demo fixtures under examples/ are intentionally broken to showcase the
+# linter, so they are excluded above and never block a commit.
+
+if [ ! -f packages/cli/dist/bin/a11y-ci.js ]; then
+  echo "a11y-ci pre-commit: CLI not built (run 'npm run build'); skipping the lint." >&2
+  exit 0
+fi
+
+# Block on errors (missing alt, empty controls). Warnings pass; tighten to
+# --fail-on warn once the team trusts the signal.
+node packages/cli/dist/bin/a11y-ci.js lint $staged --fail-on error

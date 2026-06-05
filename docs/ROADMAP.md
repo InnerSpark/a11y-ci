@@ -21,10 +21,26 @@
   non-descriptive link text, label-in-name, sensory-only instructions) at "manual"
   severity. Neither path can ever change the deterministic pass/fail decision.
 
-## Next — the authoring linter
-- A static, source-level check (and a Claude skill) that catches issues as code is
-  written, before it renders: the accessible-primitive nudges, JSX/template
-  patterns, etc. This is the "shift-left" layer that pairs with the CI checker.
+## v0.3 — the authoring linter (shipped)
+- `@a11yci/lint`: a static, source-level check that catches issues as code is
+  written, before it renders. The "shift-left" layer that pairs with the rendered
+  CI checker. Real parsers, never regex: parse5 for HTML, the TypeScript compiler
+  for JSX/TSX.
+- `a11y-ci lint <path...>` walks files/directories and reports findings, with an
+  opt-in `--fail-on warn|error` gate. Nine rules to start: `img-alt`,
+  `interactive-name`, `clickable-noninteractive`, `input-label`,
+  `positive-tabindex`, `vague-link-text`, `html-lang`, `no-autofocus`,
+  `obsolete-element`.
+- Conservative by design: a dynamic attribute or ambiguous child suppresses the
+  rule rather than guess. Contrast and computed-role checks stay with the rendered
+  engine, which the linter never tries to replicate.
+
+## Next
+- A Claude skill that applies these same rules at authoring time inside the editor,
+  so the fix is suggested as the code is written (the linter is the engine it
+  references).
+- Grow the rule set (heading order, redundant alt, duplicate ids, label-in-name
+  from source) as real-world false-positive data comes in.
 - `--fail-on` already gates on regressions; future work hardens the gate ergonomics
   (diff-aware route selection, baseline caching).
 

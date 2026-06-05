@@ -3,7 +3,8 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { audit, type AuditResult } from '@a11yci/core';
 import { diff, gatingRegressions } from '@a11yci/diff';
 import { createAnthropicAdapter } from '@a11yci/llm';
-import { formatMarkdown } from '../report.js';
+import { lintPaths, type LintFinding } from '@a11yci/lint';
+import { formatMarkdown, formatLintText } from '../report.js';
 
 function parseFlags(argv: string[]): { _: string[]; flags: Record<string, string | boolean> } {
   const _: string[] = [];
@@ -25,17 +26,46 @@ function parseFlags(argv: string[]): { _: string[]; flags: Record<string, string
 const USAGE = `a11y-ci — accessibility regression checks for CI
 
 Usage:
+  a11y-ci lint <path...> [--format text|json] [--out file] [--fail-on warn|error]
   a11y-ci audit <url...> [--out file.json] [--chrome] [--timeout 120000] [--semantic]
   a11y-ci diff --base base.json --head head.json [--format markdown|json]
                [--out comment.md] [--fail-on none|new-warn|new-serious] [--suggest-fixes]
 
 Notes:
+  - "lint" statically analyzes JSX/TSX and HTML source (no render) for a11y
+    anti-patterns. Catches issues at authoring time, before they ever ship.
   - "audit" renders each URL, runs the deterministic engine, and writes an AuditResult.
   - "diff" reports only the issues head adds over base (regression-only).
-  - Exit code is non-zero only when --fail-on is set and matching regressions exist.
+  - Exit code is non-zero only when --fail-on is set and matching findings exist.
   - --semantic and --suggest-fixes use Claude (set ANTHROPIC_API_KEY). Both are
     advisory: they never change the deterministic pass/fail decision.
 `;
+
+async function cmdLint(_: string[], flags: Record<string, string | boolean>): Promise<number> {
+  const paths = _.length > 0 ? _ : ['.'];
+  const findings = lintPaths(paths);
+
+  if (flags.format === 'json') {
+    const json = JSON.stringify(findings, null, 2);
+    if (typeof flags.out === 'string') { writeFileSync(flags.out, json); console.error(`Wrote ${flags.out}`); }
+    else process.stdout.write(json + '\n');
+  } else {
+    const text = formatLintText(findings);
+    if (typeof flags.out === 'string') { writeFileSync(flags.out, text); console.error(`Wrote ${flags.out}`); }
+    else process.stdout.write(text + '\n');
+  }
+
+  const errors = findings.filter((f: LintFinding) => f.severity === 'error').length;
+  const warns = findings.filter((f: LintFinding) => f.severity === 'warn').length;
+  const infos = findings.filter((f: LintFinding) => f.severity === 'info').length;
+  console.error(`a11y-ci lint: ${errors} error(s), ${warns} warning(s), ${infos} info across ${paths.join(', ')}.`);
+
+  // Advisory by default. Opt into a gate with --fail-on.
+  const failOn = typeof flags['fail-on'] === 'string' ? (flags['fail-on'] as string) : 'none';
+  if (failOn === 'error' && errors > 0) return 1;
+  if (failOn === 'warn' && errors + warns > 0) return 1;
+  return 0;
+}
 
 async function cmdAudit(_: string[], flags: Record<string, string | boolean>): Promise<number> {
   const urls = _;
@@ -115,6 +145,7 @@ async function main(): Promise<number> {
   const [, , cmd, ...rest] = process.argv;
   const { _, flags } = parseFlags(rest);
   switch (cmd) {
+    case 'lint': return cmdLint(_, flags);
     case 'audit': return cmdAudit(_, flags);
     case 'diff': return cmdDiff(_, flags);
     case 'help': case undefined: console.log(USAGE); return 0;

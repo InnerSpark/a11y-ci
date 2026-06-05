@@ -4,6 +4,5 @@
     "rootDir": "src",
     "outDir": "dist"
   },
-  "references": [{ "path": "../core" }, { "path": "../diff" }, { "path": "../llm" }, { "path": "../lint" }],
   "include": ["src/**/*"]
 }

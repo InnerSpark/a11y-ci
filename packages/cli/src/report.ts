@@ -1,5 +1,6 @@
 import type { Issue } from '@a11yci/core';
 import type { DiffEntry, DiffResult } from '@a11yci/diff';
+import type { LintFinding } from '@a11yci/lint';
 
 const SEV_RANK: Record<string, number> = { fail: 3, warn: 2, manual: 1, info: 0, pass: 0 };
 const IMPACT_RANK: Record<string, number> = { critical: 4, serious: 3, moderate: 2, minor: 1 };
@@ -25,9 +26,14 @@ function line(e: DiffEntry): string {
   const i = e.issue;
   const where = i.element ? ` \`${i.element.slice(0, 80)}\`` : '';
   const ref = i.wcagRef ? ` _(${i.wcagRef}${i.wcagLevel ? ' ' + i.wcagLevel : ''})_` : '';
+  // A "worsened" entry is more instances of a bug the page already had: be
+  // explicit that the count, not the bug, is what this PR introduced.
+  const worsened = e.change === 'worsened' && e.addedInstances
+    ? ` _(+${e.addedInstances} new instance${e.addedInstances === 1 ? '' : 's'} of an existing issue)_`
+    : '';
   const fix = i.fix ? `\n  - Fix: ${i.fix.slice(0, 200)}` : '';
   const aiFix = i.aiFix ? `\n  - 💡 Suggested fix (AI, review before applying): ${i.aiFix.replace(/\n+/g, ' ').slice(0, 400)}` : '';
-  return `- ${badge(i)} **${i.title}**${ref} — \`${e.url}\`${where}${fix}${aiFix}`;
+  return `- ${badge(i)} **${i.title}**${ref}${worsened} — \`${e.url}\`${where}${fix}${aiFix}`;
 }
 
 export function formatMarkdown(d: DiffResult): string {
@@ -66,6 +72,32 @@ export function formatMarkdown(d: DiffResult): string {
 
   out.push(footer(d));
   return out.join('\n');
+}
+
+function lintBadge(sev: LintFinding['severity']): string {
+  if (sev === 'error') return '🔴 error';
+  if (sev === 'warn') return '🟠 warn';
+  return 'ℹ️ info';
+}
+
+/** Human-readable, editor-style output for `a11y-ci lint`, grouped by file. */
+export function formatLintText(findings: LintFinding[]): string {
+  if (findings.length === 0) return 'a11y-ci lint: no accessibility issues found in source. ✅';
+
+  const out: string[] = [];
+  let currentFile = '';
+  for (const f of findings) {
+    if (f.file !== currentFile) {
+      currentFile = f.file;
+      out.push('');
+      out.push(currentFile);
+    }
+    const loc = `${f.line}:${f.column ?? 1}`.padEnd(7);
+    const sev = lintBadge(f.severity).padEnd(9);
+    const ref = f.wcagRef ? ` (${f.wcagRef})` : '';
+    out.push(`  ${loc} ${sev} ${f.message}${ref}  [${f.ruleId}]`);
+  }
+  return out.join('\n').trimStart();
 }
 
 function footer(d: DiffResult): string {
