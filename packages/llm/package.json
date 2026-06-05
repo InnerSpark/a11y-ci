@@ -1,6 +1,6 @@
 {
   "name": "@a11yci/llm",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Optional, bring-your-own-key Claude adapter for a11y-ci: AI fix suggestions and semantic review. Advisory only, never in the gate.",
   "license": "SEE LICENSE IN LICENSE",
   "type": "module",
@@ -21,6 +21,6 @@
     "prepublishOnly": "tsc -b"
   },
   "dependencies": {
-    "@a11yci/core": "0.4.0"
+    "@a11yci/core": "0.5.0"
   }
 }

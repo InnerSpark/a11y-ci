@@ -22,7 +22,11 @@ export async function renderPage(
   const timeoutMs = opts.timeoutMs ?? 120_000;
   const browser = await chromium.launch({
     ...(opts.useChromeChannel ? { channel: 'chrome' } : {}),
-    args: ['--no-sandbox', '--disable-dev-shm-usage'],
+    // AccessibilityObjectModel exposes getComputedAccessibleNode(), letting us read
+    // Chrome's real computed accessible name/role for issue fingerprints instead of
+    // approximating it. Harmless if the build ignores the flag; the engine falls
+    // back to a heuristic name. (Tip from autosponge in the web-a11y thread.)
+    args: ['--no-sandbox', '--disable-dev-shm-usage', '--enable-blink-features=AccessibilityObjectModel'],
   });
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
   page.setDefaultTimeout(timeoutMs);

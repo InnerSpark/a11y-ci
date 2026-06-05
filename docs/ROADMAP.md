@@ -44,6 +44,17 @@
   missed, while still absorbing framework-hash churn. Reported by westont (#5).
 - Residual limit: identical-fingerprint controls are still indistinguishable.
 
+## v0.5 — live-DOM fingerprints (shipped)
+- The engine reads identity straight from the rendered page instead of parsing
+  axe's truncated `node.html`: the computed accessible name and role (Chrome's
+  `getComputedAccessibleNode` via the AccessibilityObjectModel launch flag, with a
+  heuristic fallback), plus computed foreground/background colors. So contrast
+  nodes carry a color signal even with no text, and names are spec-correct rather
+  than scraped. Tip from autosponge in the web-a11y thread.
+- README now has an honest "Known limitations" section (time-based behavior is
+  invisible to a render-once scan, the gate can't rank by control importance,
+  identical fingerprints are indistinguishable).
+
 ## Next
 - A Claude skill that applies these same rules at authoring time inside the editor,
   so the fix is suggested as the code is written (the linter is the engine it

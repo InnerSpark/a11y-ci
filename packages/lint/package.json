@@ -1,6 +1,6 @@
 {
   "name": "@a11yci/lint",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Authoring-time accessibility linter: catch a11y anti-patterns in JSX/TSX and HTML source before they render.",
   "license": "SEE LICENSE IN LICENSE",
   "type": "module",

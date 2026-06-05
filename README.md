@@ -11,9 +11,10 @@ It is built to be **honest**: it reports what it actually measured, ranks findin
 by real user impact, and never asserts a "pass" it did not verify. Anything that
 needs a human is labelled, not hand-waved.
 
-> Status: **v0.4** — deterministic rendered engine, a content-fingerprint
-> regression diff, an advisory PR comment, an optional (opt-in) AI layer, and a
-> static authoring linter for source. Blocking is opt-in via `--fail-on`. See
+> Status: **v0.5**. Deterministic rendered engine, a content-fingerprint
+> regression diff (now keyed on the browser's computed accessible name and
+> colors), an advisory PR comment, an optional (opt-in) AI layer, and a static
+> authoring linter for source. Blocking is opt-in via `--fail-on`. See
 > `docs/ROADMAP.md`.
 
 ## Two layers, one principle
@@ -171,6 +172,31 @@ With no key, everything falls back to the deterministic-only behavior.
    "needs review", never a fabricated pass.
 4. **Rank by impact, not by clause number.** "A blind user cannot submit this
    form" outranks "page title is a little long."
+
+## Known limitations
+
+Automated regression checking catches a slice of accessibility, not the whole
+picture. Being honest about the gaps is part of the point. Thanks to the web-a11y
+community (westont of Assistiv Labs, autosponge) for stress-testing these.
+
+- **Time-based and periodic behavior is invisible.** The engine renders the page
+  once and scans that snapshot, so anything that only happens over time or on a
+  schedule with no user action (a session that auto-logs-out, an auto-advancing
+  carousel, a toast that auto-dismisses, polling that swaps content) is never
+  observed. These are real barriers (WCAG 2.2.1 and friends) that a PR can
+  introduce while the diff still reports "no new issues."
+- **The gate can't judge severity by importance.** Identity is per node, so a swap
+  that moves an existing low-priority issue onto a critical control (a nameless
+  icon button that becomes the "Add to cart" button) is surfaced as *added*, but
+  the tool can't know it is now business-critical. Treat added items as needing a
+  human's severity call, not an automatic ranking.
+- **Indistinguishable nodes can't be told apart.** When two elements have the same
+  content fingerprint (no name, no text, same role), a swap between them reads as
+  unchanged. See the diff package and issue #6.
+- **Accessible-name fidelity depends on the browser.** The engine reads Chrome's
+  computed accessible name via `getComputedAccessibleNode` when available, and
+  falls back to a heuristic otherwise; headless builds without the
+  AccessibilityObjectModel feature use the heuristic.
 
 ## License
 
