@@ -3,6 +3,14 @@ import type { AuditResult, Issue } from '@a11yci/core';
 export interface DiffEntry {
   url: string;
   issue: Issue;
+  /** For `added` entries only: 'new' = a signature absent from base; 'worsened'
+   * = an existing signature that head has MORE instances of than base (the page
+   * already had this bug; the PR adds more of it). Absent on fixed/unchanged. */
+  change?: 'new' | 'worsened';
+  /** For 'worsened' entries: how many additional instances head introduces. The
+   * entry's `issue.instanceCount` is set to this delta, so the gate reports the
+   * regression, not the whole pre-existing pile. */
+  addedInstances?: number;
 }
 
 export interface DiffResult {
@@ -45,6 +53,27 @@ function pagesByUrl(result: AuditResult): Map<string, Issue[]> {
 }
 
 /**
+ * Aggregate a page's issues by signature, summing instance counts.
+ *
+ * axe reports one issue per rule per page (with `instanceCount` = number of
+ * offending nodes and `element` = the FIRST node), so set-membership alone is
+ * blind to a PR that adds MORE instances of a rule already firing on the page:
+ * same signature, same first node, higher count. Carrying the count lets the
+ * diff catch that regression. See keyOf for what counts as the same signature.
+ */
+function countsByKey(issues: Issue[]): Map<string, { count: number; issue: Issue }> {
+  const m = new Map<string, { count: number; issue: Issue }>();
+  for (const issue of issues) {
+    const k = keyOf(issue);
+    const inc = issue.instanceCount ?? 1;
+    const prev = m.get(k);
+    if (prev) prev.count += inc;
+    else m.set(k, { count: inc, issue });
+  }
+  return m;
+}
+
+/**
  * Compare a base audit (e.g. the target branch) against a head audit (the PR).
  * Pages are matched by URL. A head page with no base counterpart is treated as
  * new, so all its issues count as added. A base page missing from head (route
@@ -57,16 +86,32 @@ export function diff(base: AuditResult, head: AuditResult): DiffResult {
   for (const headPage of head.pages) {
     if (headPage.error) continue;
     const baseIssues = basePages.get(headPage.url);
-    const baseKeys = new Set((baseIssues ?? []).map(keyOf));
-    const headKeys = new Set(headPage.issues.map(keyOf));
+    const baseMap = countsByKey(baseIssues ?? []);
+    const headMap = countsByKey(headPage.issues);
 
-    for (const issue of headPage.issues) {
-      (baseKeys.has(keyOf(issue)) ? result.unchanged : result.added).push({ url: headPage.url, issue });
-    }
-    if (baseIssues) {
-      for (const issue of baseIssues) {
-        if (!headKeys.has(keyOf(issue))) result.fixed.push({ url: headPage.url, issue });
+    for (const [k, h] of headMap) {
+      const b = baseMap.get(k);
+      if (!b) {
+        // A signature base never had: wholly new.
+        result.added.push({ url: headPage.url, issue: h.issue, change: 'new' });
+      } else if (h.count > b.count) {
+        // Same bug, but the PR adds instances of it. Gate the delta only, so the
+        // report says "+N new", not the whole pre-existing pile.
+        const addedInstances = h.count - b.count;
+        result.added.push({
+          url: headPage.url,
+          issue: { ...h.issue, instanceCount: addedInstances },
+          change: 'worsened',
+          addedInstances,
+        });
+      } else {
+        // Present in both at the same or lower count: not a regression. (A lower
+        // count is a partial fix; we don't gate improvements.)
+        result.unchanged.push({ url: headPage.url, issue: h.issue });
       }
+    }
+    for (const [k, b] of baseMap) {
+      if (!headMap.has(k)) result.fixed.push({ url: headPage.url, issue: b.issue });
     }
   }
 
