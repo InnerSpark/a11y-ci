@@ -11,6 +11,41 @@ references (`tsc -b`). Packages:
 
 Source-available under the Elastic License 2.0: free to use and self-host, not to resell as a hosted service.
 
+## Engineering Defaults
+
+General working rules. These apply to every change unless a more specific rule
+below overrides them. Bias toward caution over speed; for trivial tasks, use judgment.
+
+### Think before coding
+- State assumptions explicitly. On small choices, pick the reasonable default and
+  say what you assumed; on large, ambiguous, or hard-to-undo ones, ask first.
+- If multiple interpretations exist, present them rather than silently picking one.
+- If a simpler approach exists, say so. Push back when warranted.
+
+### Simplicity first
+- Write the minimum code that solves the problem. Nothing speculative.
+- No features beyond what was asked, no abstractions for single-use code, no
+  unrequested configurability, no error handling for impossible scenarios.
+- If you wrote 200 lines and it could be 50, rewrite it. Would a senior engineer
+  call this overcomplicated? If yes, simplify.
+
+### Surgical changes
+- Touch only what the request requires. Every changed line should trace to it.
+- Don't "improve" adjacent code or refactor what isn't broken unless that's the ask.
+  Match the existing style of the package, even across the workspace boundary.
+- The linter parses with parse5 and the TypeScript compiler, never regex; keep it
+  that way when extending it.
+- Remove imports, variables, and functions your change orphaned. Leave pre-existing
+  dead code alone; mention it instead of deleting it.
+
+### Verify before done
+- Turn the task into a concrete success check before starting, and confirm it before
+  calling the work done. Prefer a test (the diff suite runs under `npm test`,
+  `node --test`); otherwise a typecheck/build (`npm run build`, `tsc -b`).
+- For bugs, reproduce first: a failing test (the diff suite is built for exactly
+  this), then the fix.
+- For multi-step work, state a short plan with a verify step per item.
+
 ## Build, test, release
 
 - Build: `npm run build`. Test: `npm test` (builds, then `node --test`; the diff suite lives in `packages/diff/test`).
