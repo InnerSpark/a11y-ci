@@ -17,6 +17,11 @@ needs a human is labelled, not hand-waved.
 > authoring linter for source. Blocking is opt-in via `--fail-on`. See
 > `docs/ROADMAP.md`.
 
+a11y-ci is the open-source, PR-diff piece of a bigger picture. For a hosted version
+with a dashboard, whole-site crawling, authenticated-page scanning, score tracking
+over time, and VPAT/ACR export, see [AccessSpark](https://accessspark.io), a hosted
+web accessibility auditor from the same author.
+
 ## Two layers, one principle
 
 a11y-ci checks accessibility at two points, and is honest at both:
