@@ -10,3 +10,5 @@ coverage/
 a11y-base.json
 a11y-head.json
 a11y-comment.md
+head.json
+base.json

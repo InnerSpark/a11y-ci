@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "description": "Source-available accessibility CI engine: catch the accessibility issues a pull request introduces, before they merge.",
+  "author": "Inner Spark Media, LLC",
   "license": "SEE LICENSE IN LICENSE",
   "workspaces": [
     "packages/*"
